@@ -4,7 +4,7 @@ This repository contains an example Google Cloud Function designed to synchroniz
 
 ## Functionality
 
-The function is triggered by a Pub/Sub message with the schema `{'offset': int}`. It fetches products from the CatalogIQ API using the provided offset and adds them to the Odoo Catalog API. If a product with the same name and/or SKU already exists in Odoo it will add another. You can implement logic to check for exisitng records by the default_code
+The function is triggered by a Pub/Sub message with the schema `{'offset': string}`. It fetches products from the CatalogIQ API using the provided offset and adds them to the Odoo Catalog API. If a product with the same name and/or SKU already exists in Odoo it will add another. You can implement logic to check for exisitng records by the default_code
 
 ## Requirements
 
