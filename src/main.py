@@ -29,6 +29,8 @@ ODOO_URL = os.environ.get('ODOO_URL') # 'https://yourdomain.com'
 ODOO_DB = os.environ.get('ODOO_DB') # Your Odoo Database name
 ODOO_USERNAME = os.environ.get('ODOO_USERNAME') # Your Odoo username
 ODOO_PASSWORD = os.environ.get('ODOO_PASSWORD') # Your Odoo password
+PUBSUB_PROJECT = os.environ.get('PUBSUB_PROJECT') # Your Google Cloud Project ID
+PUBSUB_TOPIC = os.environ.get('PUBSUB_TOPIC') # Your Pub/Sub Topic ID
 
 
 # Odoo XML-RPC Setup
@@ -258,7 +260,7 @@ def main(event, context):
         update_variant_skus(product_template_id, product_data)
 
         publisher = pubsub_v1.PublisherClient()
-        topic_path = publisher.topic_path('bitnami-ttqjdimqca', 'demo-odoo-rpc-connector')
+        topic_path = publisher.topic_path(PUBSUB_PROJECT, PUBSUB_TOPIC)
         publish_next_message(publisher, topic_path, str(int(offset) + 1))
     
     return f'Processed product complete'
