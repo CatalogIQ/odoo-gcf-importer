@@ -31,7 +31,6 @@ ODOO_USERNAME = os.environ.get('ODOO_USERNAME') # Your Odoo username
 ODOO_PASSWORD = os.environ.get('ODOO_PASSWORD') # Your Odoo password
 
 
-
 # Odoo XML-RPC Setup
 common_proxy = xmlrpc_client.ServerProxy('{}/xmlrpc/2/common'.format(ODOO_URL))
 uid = common_proxy.authenticate(ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD, {})
@@ -117,15 +116,15 @@ def update_variant_skus(product_template_id, product_data):
                 print(f'No variant found for {variant["attributes"]}')
                 return None
             for variant_id in variant_ids:
-                variant_image_url = variant['image'] + '/800x800'  # replace with the actual key for the image url
-                variant_response_img = requests.get(variant_image_url)
-                variant_image_base64 = base64.b64encode(variant_response_img.content).decode('utf-8')                
+                variant_image_url = variant['image'] + '/800x800'  # replace with the actual key for the image url    
+                variant_image_base64 = download_and_encode_image(variant_image_url)          
                 # Update each found variant with the SKU provided by CatalogIQ
-                res_update = execute_odoo_kw('product.product', 'write', [variant_id, {
-                    'default_code': variant['default_code'],
-                    'image_1920': variant_image_base64 + '/800x800' # Image modifier saves time and resources when inserting images
-                    # Add additional product.product fields here
-                }])
+                variant_update = {
+                    'default_code': variant['default_code'],                    
+                }
+                if variant_image_base64:
+                    variant_update['image_1920'] = variant_image_base64
+                execute_odoo_kw('product.product', 'write', [variant_id, variant_update])
                 # print(f'Updated variant ID {res_update} with SKU {variant["default_code"]}')
         return None
     except Exception as e:
@@ -150,6 +149,17 @@ def get_variant_attribute_names(product_data):
     # Return the list of unique variant attribute names
     return variant_attributes
 
+
+# Downloads an image from the provided URL and encodes it to base64.
+def download_and_encode_image(image_url):
+    try:
+        response_img = requests.get(image_url, timeout=5)
+        image_base64 = base64.b64encode(response_img.content).decode('utf-8')
+        return image_base64
+    except Exception as e:
+        print(f'Error downloading and encoding image: {e}')
+        return None
+
 # Adds additional images (extra product media) to the product template in Odoo.
 # The images are downloaded from the image URL provided by CatalogIQ and encoded to base64.
 # @Input:int product_template_id: ID of the product template in Odoo
@@ -157,16 +167,15 @@ def get_variant_attribute_names(product_data):
 # @Return:None
 def add_product_images(product_template_id, images_data):
     for image_data in images_data:
-        image_url = image_data['url']
-        response_img = requests.get(image_url)
-        image_base64 = base64.b64encode(response_img.content).decode('utf-8')
-
+        image_url = image_data['url'] + '/800x800'  
+        image_base64 = download_and_encode_image(image_url)       
         product_image_data = {
             'name': image_data['name'],
             'image_1920': image_base64,
             'product_tmpl_id': product_template_id,
         }
-        execute_odoo_kw('product.image', 'create', [product_image_data])
+        if image_base64:
+            execute_odoo_kw('product.image', 'create', [product_image_data])
         #print(f'Added image {image_data["name"]} to product template ID {product_template_id}')
     return None
 
@@ -240,15 +249,19 @@ def main(event, context):
     offset = message_data.get('offset', 0)
 
     response = requests.get(f'https://catalogiq.app/api/v1/products?offset={offset}&limit=1', headers={'Catalogiq-Api-Key': CATALOGIQ_API_KEY})
-    product_data = response.json()['results'][0]
+    if response.json()['results']:
+        
+        product_data = response.json()['results'][0]
 
-    product_template_id = create_product_template(product_data)
+        product_template_id = create_product_template(product_data)
 
-    update_variant_skus(product_template_id, product_data)
+        update_variant_skus(product_template_id, product_data)
 
-    publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path('bitnami-ttqjdimqca', 'demo-odoo-rpc-connector')
-    publish_next_message(publisher, topic_path, str(int(offset) + 1))
+        publisher = pubsub_v1.PublisherClient()
+        topic_path = publisher.topic_path('bitnami-ttqjdimqca', 'demo-odoo-rpc-connector')
+        publish_next_message(publisher, topic_path, str(int(offset) + 1))
     
-    return f'Processed product with offset: {offset}, Product Template ID: {product_template_id}'
+    return f'Processed product complete'
+
+
 
