@@ -153,6 +153,8 @@ def get_variant_attribute_names(product_data):
 
 
 # Downloads an image from the provided URL and encodes it to base64.
+# @Input:String image_url: URL of the image to download
+# @Return:String: Base64 encoded image or None if an error occurs
 def download_and_encode_image(image_url):
     try:
         response_img = requests.get(image_url, timeout=5)
